@@ -19,13 +19,11 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Nadaj uprawnienia do uruchomienia gradlew
-      run: chmod +x gradlew || true
-
-    - name: Zbuduj plik APK
-      uses: gradle/gradle-build-action@v3
-      with:
-        arguments: assembleDebug
+    - name: Zainstaluj i uruchom Gradle
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gradle
+        gradle assembleDebug --stacktrace
 
     - name: Prześlij gotowy plik APK
       uses: actions/upload-artifact@v4
