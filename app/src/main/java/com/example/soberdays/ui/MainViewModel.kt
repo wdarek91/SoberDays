@@ -17,7 +17,7 @@ data class SoberUiState(
     val hours: Long = 0,
     val minutes: Long = 0,
     val savedMoney: Double = 0.0,
-    val dailyCost: Double = 25.0,
+    val dailyCost: Double = 20.0,
     val quote: String = "Najlepszy czas na zasadzenie drzewa był 20 lat temu. Drugi najlepszy czas jest teraz."
 )
 

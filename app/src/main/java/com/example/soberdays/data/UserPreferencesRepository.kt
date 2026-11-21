@@ -22,7 +22,7 @@ class UserPreferencesRepository(private val context: Context) {
     }
 
     val dailyCostFlow: Flow<Double> = context.dataStore.data.map { preferences ->
-        preferences[DAILY_COST] ?: 25.0
+        preferences[DAILY_COST] ?: 20.0 // Zmieniono na 20 zł dziennie
     }
 
     suspend fun saveStartDate(timestamp: Long) {
