@@ -8,28 +8,43 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.soberdays.data.GeneralPrayer
+import com.example.soberdays.data.PrayerRepository
+import com.example.soberdays.data.SaintPatron
 import com.example.soberdays.notification.DailyReminderReceiver
 import com.example.soberdays.ui.MainViewModel
 import java.util.Locale
@@ -38,7 +53,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Harmonogram powiadomień o 8:00 rano
         DailyReminderReceiver.scheduleDaily8AmNotification(this)
 
         setContent {
@@ -56,7 +70,7 @@ fun RequestNotificationPermission() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val launcher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
-            onResult = { /* Uprawnienie przyznane lub odrzucone */ }
+            onResult = { }
         )
 
         LaunchedEffect(Unit) {
@@ -102,7 +116,7 @@ fun SoberMainScreen(viewModel: MainViewModel = viewModel()) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Górny pasek z przyciskiem modlitwy
+            // Górny pasek
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -116,7 +130,6 @@ fun SoberMainScreen(viewModel: MainViewModel = viewModel()) {
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Przycisk MODLITWA
                 OutlinedButton(
                     onClick = { showPrayerDialog = true },
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -133,7 +146,7 @@ fun SoberMainScreen(viewModel: MainViewModel = viewModel()) {
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Modlitwa",
+                        text = "Patroni i Modlitwy",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -219,29 +232,36 @@ fun SoberMainScreen(viewModel: MainViewModel = viewModel()) {
             }
         }
 
-        // Dialog Modlitwy
+        // Dialog Modlitewnika i Patronów
         if (showPrayerDialog) {
-            Dialog(onDismissRequest = { showPrayerDialog = false }) {
+            Dialog(
+                onDismissRequest = { showPrayerDialog = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
                 Card(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.85f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF161920))
+                        .fillMaxWidth(0.94f)
+                        .fillMaxHeight(0.92f),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF13161C))
                 ) {
+                    var selectedTab by remember { mutableStateOf(0) }
+                    val tabs = listOf("Patroni trzeźwości", "Modlitwy ogólne")
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(20.dp)
+                            .padding(16.dp)
                     ) {
+                        // Belka górna
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "MODLITWY",
-                                fontSize = 16.sp,
+                                text = "DUCHOWE WSPARCIE",
+                                fontSize = 15.sp,
                                 letterSpacing = 3.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary
@@ -255,57 +275,59 @@ fun SoberMainScreen(viewModel: MainViewModel = viewModel()) {
                             }
                         }
 
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Zakładki
+                        TabRow(
+                            selectedTabIndex = selectedTab,
+                            containerColor = Color.Transparent,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            indicator = { tabPositions ->
+                                TabRowDefaults.Indicator(
+                                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        ) {
+                            tabs.forEachIndexed { index, title ->
+                                Tab(
+                                    selected = selectedTab == index,
+                                    onClick = { selectedTab = index },
+                                    text = {
+                                        Text(
+                                            text = title,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (selectedTab == index) MaterialTheme.colorScheme.primary else Color.Gray
+                                        )
+                                    }
+                                )
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            // Modlitwa 1: O pogodę ducha
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E222B)),
-                                shape = RoundedCornerShape(14.dp)
+                        // Zawartość zakładek
+                        if (selectedTab == 0) {
+                            // Lista patronów z wizerunkami
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                                contentPadding = PaddingValues(vertical = 4.dp)
                             ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = "Modlitwa o pogodę ducha",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text(
-                                        text = "Boże, użycz mi pogody ducha,\nabym godził się z tym, czego nie mogę zmienić,\nodwagi, abym zmieniał to, co mogę zmienić,\ni mądrości, abym odróżniał jedno od drugiego.",
-                                        fontSize = 14.sp,
-                                        lineHeight = 22.sp,
-                                        fontFamily = FontFamily.Serif,
-                                        color = Color(0xFFE2E2E2)
-                                    )
+                                items(PrayerRepository.patrons) { patron ->
+                                    SaintPatronCard(patron = patron)
                                 }
                             }
-
-                            // Modlitwa 2: Do św. Jana Chrzciciela
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E222B)),
-                                shape = RoundedCornerShape(14.dp)
+                        } else {
+                            // Lista modlitw ogólnych
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                                contentPadding = PaddingValues(vertical = 4.dp)
                             ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = "Modlitwa do św. Jana Chrzciciela",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text(
-                                        text = "Święty Janie Chrzcicielu, który abstynencję praktykowałeś przez całe swoje życie,\npomóż, abyśmy w naszej Ojczyźnie dożyli czasów,\nw których alkohol przestanie być symbolem nieszczęść, zmartwień i tragedii.\n\nChroń nas przed grzechem upijania się. Bądź natchnieniem i pomocą dla wszystkich,\nktórzy wyrzekają się napojów alkoholowych dla dobra swoich najbliższych i Narodu.\n\nPatronie trzeźwości, wzbudź w sercach moich rodaków pragnienie życia bez alkoholu,\nabyśmy poprzez ich abstynencję osiągnęli trzeźwość całego Narodu.\n\nAmen.",
-                                        fontSize = 14.sp,
-                                        lineHeight = 22.sp,
-                                        fontFamily = FontFamily.Serif,
-                                        color = Color(0xFFE2E2E2)
-                                    )
+                                items(PrayerRepository.generalPrayers) { prayer ->
+                                    GeneralPrayerCard(prayer = prayer)
                                 }
                             }
                         }
@@ -335,6 +357,128 @@ fun SoberMainScreen(viewModel: MainViewModel = viewModel()) {
                         Text("Anuluj")
                     }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+fun SaintPatronCard(patron: SaintPatron) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+            .clickable { expanded = !expanded },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1E26))
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Wizerunek świętego w złotej obwódce
+                Image(
+                    painter = painterResource(id = patron.imageRes),
+                    contentDescription = patron.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(58.dp)
+                        .clip(CircleShape)
+                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                )
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = patron.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = patron.subtitle,
+                        fontSize = 12.sp,
+                        color = Color(0xFFB5BAC4),
+                        lineHeight = 15.sp
+                    )
+                }
+
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Zwiń" else "Rozwiń",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.padding(top = 14.dp)) {
+                    Divider(color = Color(0xFF2C313C), thickness = 0.8.dp)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = patron.bio,
+                        fontSize = 12.5.sp,
+                        color = Color(0xFF9EACB9),
+                        lineHeight = 17.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = patron.prayerTitle,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = patron.prayerText,
+                        fontSize = 13.5.sp,
+                        fontFamily = FontFamily.Serif,
+                        lineHeight = 21.sp,
+                        color = Color(0xFFE8E8E8)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GeneralPrayerCard(prayer: GeneralPrayer) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1E26))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = prayer.title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = prayer.subtitle,
+                fontSize = 12.sp,
+                color = Color(0xFF9EACB9)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Divider(color = Color(0xFF2C313C), thickness = 0.8.dp)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = prayer.prayerText,
+                fontSize = 13.5.sp,
+                fontFamily = FontFamily.Serif,
+                lineHeight = 21.sp,
+                color = Color(0xFFE8E8E8)
             )
         }
     }
